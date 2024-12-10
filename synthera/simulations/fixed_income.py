@@ -24,20 +24,28 @@ def simulation_past_date(api_key, request: dict, api_address=None) -> (dict, dic
     print(f"API response code: {r.status_code}")
     response = json.loads(r.content)
 
-    parquet_files = response.get("parquet_files", {})
-    simulation_data = {}
-    for simulation_item in parquet_files:
-        df = pd.read_parquet(io.BytesIO(eval(simulation_item.get("file"))))
-        simulation_data.update({simulation_item.get("label"): df})
+    api_response = None
+    if r.status_code != 200:
+        print(response)
+        api_response = (response, r.status_code)
+    else:
+        parquet_files = response.get("parquet_files", {})
 
-    array = np.concatenate(
-        [
-            df.values.reshape(no_samples, 1, -1, df.values.shape[1])
-            for key, df in simulation_data.items()
-        ],
-        axis=1,
-    )
-    simulation_data.update({"numpy_array": array, "column_names": list(df.columns)})
+        simulation_data = {}
+        for simulation_item in parquet_files:
+            df = pd.read_parquet(io.BytesIO(eval(simulation_item.get("file"))))
+            simulation_data.update({simulation_item.get("label"): df})
 
-    meta_data = response.get("simulation_meta_data")
-    return simulation_data, meta_data
+        if len(simulation_data) > 0:
+            array = np.concatenate(
+                [
+                    df.values.reshape(no_samples, 1, -1, df.values.shape[1])
+                    for key, df in simulation_data.items()
+                ],
+                axis=1,
+            )
+            simulation_data.update({"numpy_array": array, "column_names": list(df.columns)})
+
+        meta_data = response.get("simulation_meta_data")
+        api_response = (simulation_data, meta_data), 200
+    return api_response

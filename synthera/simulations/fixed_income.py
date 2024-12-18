@@ -34,6 +34,8 @@ def simulation_past_date(api_key, request: dict, api_address=None) -> (dict, dic
         simulation_data = {}
         for simulation_item in parquet_files:
             df = pd.read_parquet(io.BytesIO(eval(simulation_item.get("file"))))
+            df['IDX'] = pd.to_datetime(df['IDX'], unit='s')
+            df['SAMPLE'] = df['SAMPLE'].astype(int)
             simulation_data.update({simulation_item.get("label"): df})
 
         if len(simulation_data) > 0:
